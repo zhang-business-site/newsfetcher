@@ -10,3 +10,4 @@ patchright
 browserforge
 msgspec
 pyOpenSSL
+playwright
