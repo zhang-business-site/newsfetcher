@@ -1,7 +1,7 @@
 services:
   newsfetcher:
     # 本地开发时用 build: . ，生产环境用 image
-    image: ghcr.io/${GH_REPO:-ruziyi/newsfetcher}:latest
+    image: ghcr.io/${GH_REPO:-zhang-business-site/newsfetcher}:latest
     build: .
     container_name: newsfetcher
     ports:
