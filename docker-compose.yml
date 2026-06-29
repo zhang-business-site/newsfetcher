@@ -11,5 +11,5 @@ services:
       - API_PORT=8000
       - FETCH_INTERVAL_MINUTES=30
     volumes:
-      - ./articles.db:/app/articles.db
+      - ./data:/app/data
     restart: unless-stopped

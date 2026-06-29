@@ -7,7 +7,7 @@ import os
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
 
 # SQLite 数据库路径
-DB_PATH = os.path.join(os.path.dirname(__file__), "articles.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "articles.db"))
 
 # API 配置
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
