@@ -48,6 +48,57 @@ def _extract_summary(html_content: str, body_html: str | None = None) -> str:
     return ""
 
 
+def _extract_metadata(html_content: str) -> dict[str, str]:
+    """
+    从 BBC 文章页面提取元数据：发布时间、作者、栏目、主图。
+    优先用 LD+JSON，其次用 meta 标签。
+    """
+    import json
+
+    result = {"published_at": "", "author": "", "section": "", "image_url": ""}
+
+    # 1) LD+JSON 结构化数据
+    ld_match = re.search(
+        r'<script type="application/ld\+json"[^>]*>(.*?)</script>',
+        html_content, re.DOTALL,
+    )
+    if ld_match:
+        try:
+            ld = json.loads(ld_match.group(1))
+            result["published_at"] = ld.get("datePublished", "")
+            authors = ld.get("author", [])
+            if isinstance(authors, list) and authors:
+                result["author"] = authors[0].get("name", "")
+            elif isinstance(authors, dict):
+                result["author"] = authors.get("name", "")
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+    # 2) meta 标签兜底
+    try:
+        from lxml import html as lxhtml
+        doc = lxhtml.fromstring(html_content)
+
+        if not result["section"]:
+            val = doc.xpath('//meta[@name="page.section"]/@content')
+            if val:
+                result["section"] = val[0].strip()
+
+        if not result["image_url"]:
+            val = doc.xpath('//meta[@property="og:image"]/@content')
+            if val:
+                result["image_url"] = val[0].strip()
+
+        if not result["author"]:
+            val = doc.xpath('//meta[@property="cXenseParse:author"]/@content')
+            if val:
+                result["author"] = val[0].strip()
+    except Exception:
+        pass
+
+    return result
+
+
 def fetch_bbc_articles() -> int:
     """
     抓取 BBC Business 最新文章（同步，运行在线程中）。
@@ -105,9 +156,13 @@ def fetch_bbc_articles() -> int:
 
                 summary = _extract_summary(detail.html_content, html_body)
 
+                meta = _extract_metadata(detail.html_content)
+
                 db.execute(
-                    "INSERT INTO articles (url, title, source, summary, body_html) VALUES (?, ?, ?, ?, ?)",
-                    (url, title, cfg["name"], summary, html_body),
+                    "INSERT INTO articles (url, title, source, summary, body_html, published_at, author, section, image_url) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (url, title, cfg["name"], summary, html_body,
+                     meta["published_at"], meta["author"], meta["section"], meta["image_url"]),
                 )
                 db.commit()
                 new_count += 1

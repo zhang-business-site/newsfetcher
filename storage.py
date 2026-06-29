@@ -24,11 +24,18 @@ async def init_db():
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
-    # 兼容旧表：如果 summary 列不存在则添加
-    try:
-        await db.execute("ALTER TABLE articles ADD COLUMN summary TEXT NOT NULL DEFAULT ''")
-    except Exception:
-        pass  # 列已存在
+    # 兼容旧表：缺失列自动添加
+    for col, col_def in [
+        ("summary", "TEXT NOT NULL DEFAULT ''"),
+        ("published_at", "TEXT NOT NULL DEFAULT ''"),
+        ("author", "TEXT NOT NULL DEFAULT ''"),
+        ("section", "TEXT NOT NULL DEFAULT ''"),
+        ("image_url", "TEXT NOT NULL DEFAULT ''"),
+    ]:
+        try:
+            await db.execute(f"ALTER TABLE articles ADD COLUMN {col} {col_def}")
+        except Exception:
+            pass  # 列已存在
     await db.execute("""
         CREATE INDEX IF NOT EXISTS idx_articles_created_at
         ON articles(created_at DESC)
@@ -41,13 +48,17 @@ async def init_db():
     await db.close()
 
 
-async def insert_article(url: str, title: str, source: str, summary: str, body_html: str) -> bool:
+async def insert_article(
+    url: str, title: str, source: str, summary: str, body_html: str,
+    published_at: str = "", author: str = "", section: str = "", image_url: str = "",
+) -> bool:
     """插入文章，如果 URL 已存在则忽略。返回 True 表示新插入。"""
     db = await get_db()
     try:
         await db.execute(
-            "INSERT INTO articles (url, title, source, summary, body_html) VALUES (?, ?, ?, ?, ?)",
-            (url, title, source, summary, body_html),
+            "INSERT INTO articles (url, title, source, summary, body_html, published_at, author, section, image_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (url, title, source, summary, body_html, published_at, author, section, image_url),
         )
         await db.commit()
         return True
